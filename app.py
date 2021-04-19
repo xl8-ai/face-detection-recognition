@@ -4,6 +4,7 @@ import logging
 from insightface.app.face_analysis import FaceAnalysis
 import numpy as np
 import argparse
+import io
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -18,23 +19,29 @@ fa = FaceAnalysis(det_name='retinaface_r50_v1',
                   rec_name='arcface_r100_v1',
                   ga_name='genderage_v1')
 
+
 @app.route("/face-analysis", methods=["POST"])
 def extract_frames():
-    files = request.files['image']
-    # convert bytes to string as json should be string to decode.
-    files = files.read()
-    files = jsonpickle.decode(files)
+    """
+    Receive everything in json!!!
 
-    app.logger.info(f"{files} received")
+    """
+    app.logger.debug(f"Receiving data ...")
+    data = request.json
+    data = jsonpickle.decode(data)
 
-    frame = np.array(files)
+    app.logger.debug(f"Reading a PIL image ...")
+    image = data['image']
+
+    app.logger.debug(f"Conveting a PIL image to a numpy array ...")
+    image = np.array(image)
 
     app.logger.info(f"extraing features ...")
-    list_of_features = fa.get(frame)
+    list_of_features = fa.get(image)
     app.logger.info(f"features extracted!")
 
     app.logger.info(f"In total of {len(list_of_features)} faces detected!")
-    
+
     results_frame = []
     for features in list_of_features:
         feature_dict = {'age': features.age,
