@@ -3,6 +3,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 COPY . .
+RUN mkdir -p ~/.insightface/
+RUN mv models ~/.insightface/
 
 RUN apt update
 RUN apt install ffmpeg libsm6 libxext6  -y
