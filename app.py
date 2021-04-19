@@ -20,7 +20,7 @@ fa = FaceAnalysis(det_name='retinaface_r50_v1',
                   ga_name='genderage_v1')
 
 
-@app.route("/face-analysis", methods=["POST"])
+@app.route("/", methods=["POST"])
 def extract_frames():
     """
     Receive everything in json!!!
