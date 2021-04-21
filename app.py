@@ -5,6 +5,7 @@ from insightface.app.face_analysis import FaceAnalysis
 import numpy as np
 import argparse
 import io
+from PIL import Image
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -30,8 +31,12 @@ def extract_frames():
     data = request.json
     data = jsonpickle.decode(data)
 
-    app.logger.debug(f"Reading a PIL image ...")
+    app.logger.debug(f"decompressing image ...")
     image = data['image']
+    image = io.BytesIO(image)
+
+    app.logger.debug(f"Reading a PIL image ...")
+    image = Image.open(image)
 
     app.logger.debug(f"Conveting a PIL image to a numpy array ...")
     image = np.array(image)

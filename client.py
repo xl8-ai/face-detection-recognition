@@ -7,6 +7,7 @@ import os
 from tqdm import tqdm
 from PIL import Image
 import pickle
+import io
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -18,7 +19,6 @@ logging.basicConfig(
 def main(url_video2frames, url_insightface, video_path, width_max, height_max,
          fps_max, save_dir):
     os.makedirs(save_dir, exist_ok=True)
-
 
     with open(video_path, 'rb') as stream:
         binary_video = stream.read()
@@ -41,13 +41,17 @@ def main(url_video2frames, url_insightface, video_path, width_max, height_max,
 
     assert len(frames) == len(metadata['frame_idx_original'])
 
-    for frame, idx in tqdm(zip(frames, metadata['frame_idx_original'])):
+    logging.debug(f"decompressing frames ...")
+    for frame_bytestring, idx in tqdm(zip(frames, metadata['frame_idx_original'])):
+        frame = io.BytesIO(frame_bytestring)
+        frame = Image.open(frame)
+
         fp = os.path.join(save_dir, os.path.basename(
             video_path)) + f".{str(idx).zfill(5)}.jpg"
         frame.save(fp)
         logging.info(f"{fp} saved")
 
-        data = {'image': frame}
+        data = {'image': frame_bytestring}
         data = jsonpickle.encode(data)
         response = requests.post(url_insightface, json=data)
         logging.info(f"{response} received")
@@ -56,7 +60,7 @@ def main(url_video2frames, url_insightface, video_path, width_max, height_max,
 
         fa_results = response['fa_results']
 
-        fp = fp + '.face-analysis.pkl'        
+        fp = fp + '.face-analysis.pkl'
         with open(fp, 'wb') as stream:
             pickle.dump(fa_results, stream)
         logging.info(f"{fp} saved")
