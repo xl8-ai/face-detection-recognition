@@ -15,10 +15,10 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
-
+# gender age estimaion are bad. We don't use them here.
 fa = FaceAnalysis(det_name='retinaface_r50_v1',
                   rec_name='arcface_r100_v1',
-                  ga_name='genderage_v1')
+                  ga_name=None)
 
 
 @app.route("/", methods=["POST"])
@@ -49,10 +49,8 @@ def extract_frames():
 
     results_frame = []
     for features in list_of_features:
-        feature_dict = {'age': features.age,
-                        'bbox': features.bbox,
+        feature_dict = {'bbox': features.bbox,
                         'det_score': features.det_score,
-                        'gender': features.gender,
                         'landmark': features.landmark,
                         'normed_embedding': features.normed_embedding
                         }
