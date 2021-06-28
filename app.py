@@ -27,39 +27,44 @@ def extract_frames():
     Receive everything in json!!!
 
     """
-    app.logger.debug(f"Receiving data ...")
-    data = request.json
-    data = jsonpickle.decode(data)
+    try:
+        app.logger.debug(f"Receiving data ...")
+        data = request.json
+        data = jsonpickle.decode(data)
 
-    app.logger.debug(f"decompressing image ...")
-    image = data['image']
-    image = io.BytesIO(image)
+        app.logger.debug(f"decompressing image ...")
+        image = data['image']
+        image = io.BytesIO(image)
 
-    app.logger.debug(f"Reading a PIL image ...")
-    image = Image.open(image)
+        app.logger.debug(f"Reading a PIL image ...")
+        image = Image.open(image)
 
-    app.logger.debug(f"Conveting a PIL image to a numpy array ...")
-    image = np.array(image)
+        app.logger.debug(f"Conveting a PIL image to a numpy array ...")
+        image = np.array(image)
 
-    app.logger.info(f"extraing features ...")
-    list_of_features = fa.get(image)
-    app.logger.info(f"features extracted!")
+        app.logger.info(f"extraing features ...")
+        list_of_features = fa.get(image)
+        app.logger.info(f"features extracted!")
 
-    app.logger.info(f"In total of {len(list_of_features)} faces detected!")
+        app.logger.info(f"In total of {len(list_of_features)} faces detected!")
 
-    results_frame = []
-    for features in list_of_features:
-        feature_dict = {'bbox': features.bbox,
-                        'det_score': features.det_score,
-                        'landmark': features.landmark,
-                        'normed_embedding': features.normed_embedding
-                        }
-        results_frame.append(feature_dict)
+        results_frame = []
+        for features in list_of_features:
+            feature_dict = {'bbox': features.bbox,
+                            'det_score': features.det_score,
+                            'landmark': features.landmark,
+                            'normed_embedding': features.normed_embedding
+                            }
+            results_frame.append(feature_dict)
 
-    response = {'fa_results': results_frame}
+        response = {'fa_results': results_frame}
+        app.logger.info("json-pickle is done.")
+
+    except Exception as e:
+        response = {'fa_results': None}
+        app.logger.error(f"something went wrong: {e}")
+
     response_pickled = jsonpickle.encode(response)
-
-    app.logger.info("json-pickle is done.")
 
     return response_pickled
 
