@@ -8,7 +8,7 @@ import io
 from PIL import Image
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
 )
@@ -27,42 +27,44 @@ def extract_frames():
     Receive everything in json!!!
 
     """
-    try:
-        app.logger.debug(f"Receiving data ...")
-        data = request.json
-        data = jsonpickle.decode(data)
+    app.logger.debug(f"Receiving data ...")
+    data = request.json
+    data = jsonpickle.decode(data)
 
-        app.logger.debug(f"decompressing image ...")
-        image = data['image']
-        image = io.BytesIO(image)
+    app.logger.debug(f"decompressing image ...")
+    image = data['image']
+    image = io.BytesIO(image)
 
-        app.logger.debug(f"Reading a PIL image ...")
-        image = Image.open(image)
+    app.logger.debug(f"Reading a PIL image ...")
+    image = Image.open(image)
 
-        app.logger.debug(f"Conveting a PIL image to a numpy array ...")
-        image = np.array(image)
+    app.logger.debug(f"Conveting a PIL image to a numpy array ...")
+    image = np.array(image)
 
-        app.logger.info(f"extraing features ...")
-        list_of_features = fa.get(image)
-        app.logger.info(f"features extracted!")
-
-        app.logger.info(f"In total of {len(list_of_features)} faces detected!")
-
-        results_frame = []
-        for features in list_of_features:
-            feature_dict = {'bbox': features.bbox,
-                            'det_score': features.det_score,
-                            'landmark': features.landmark,
-                            'normed_embedding': features.normed_embedding
-                            }
-            results_frame.append(feature_dict)
-
-        response = {'fa_results': results_frame}
-        app.logger.info("json-pickle is done.")
-
-    except Exception as e:
+    if len(image.shape) != 3:
+        app.logger.error(f"image shape: {image.shape} is not RGB!")
+        del data, image
         response = {'fa_results': None}
-        app.logger.error(f"something went wrong: {e}")
+        response_pickled = jsonpickle.encode(response)
+        return response_pickled
+
+    app.logger.info(f"extraing features ...")
+    list_of_features = fa.get(image)
+    app.logger.info(f"features extracted!")
+
+    app.logger.info(f"In total of {len(list_of_features)} faces detected!")
+
+    results_frame = []
+    for features in list_of_features:
+        feature_dict = {'bbox': features.bbox,
+                        'det_score': features.det_score,
+                        'landmark': features.landmark,
+                        'normed_embedding': features.normed_embedding
+                        }
+        results_frame.append(feature_dict)
+
+    response = {'fa_results': results_frame}
+    app.logger.info("json-pickle is done.")
 
     response_pickled = jsonpickle.encode(response)
 
