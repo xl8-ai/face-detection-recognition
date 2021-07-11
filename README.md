@@ -13,7 +13,7 @@ You can either run the `app.py` directly with Python3 or in a docker container.
 First download the models and unzip them.
 
 ```bash
-wget https://github.com/taeert/insightface/releases/download/models/models.zip
+wget https://github.com/taeert/face-detection-recognition/releases/download/models/models.zip
 
 unzip models.zip
 ```
@@ -47,12 +47,12 @@ unzip models.zip
   
   2. Build the container.
       ```bash
-      docker build -t face-analysis .  
+      docker build -t face-detection-recognition .  
       ```
 
   3. Run it.
       ```bash
-      docker run -it --rm -p 10002:10002 face-analysis
+      docker run -it --rm -p 10002:10002 face-detection-recognition
       ```
 
 - Run on GPU
@@ -61,12 +61,12 @@ unzip models.zip
 
   2. Build the container.
       ```bash
-      docker build -f Dockerfile-cuda11 -t face-analysis-cuda .  
+      docker build -f Dockerfile-cuda -t face-detection-recognition-cuda .  
       ```
 
   3. Run it.
       ```bash
-      docker run -it --rm -p 10002:10002 --gpus all face-analysis-cuda
+      docker run -it --rm -p 10002:10002 --gpus all face-detection-recognition-cuda
       ```
 
 ## Making a REST POST request to the flask server.
@@ -84,13 +84,13 @@ data = {'image': frame_bytestring}
 data = jsonpickle.encode(data)
 response = requests.post('http://127.0.0.1:10002/', json=data)
 response = jsonpickle.decode(response.text)
-fa_results = response['fa_results']
+face_detection_recognition = response['face_detection_recognition']
 
 with open('/path/to/save/results', 'wb') as stream:
-    pickle.dump(fa_results, stream)
+    pickle.dump(face_detection_recognition, stream)
 ```
 
-`fa_results` is a list of `dict`s. The number of `dict`s correspond to the number of faces detected in the image. Every `dict` has four key-value pairs. They are:
+`face_detection_recognition` is a list of `dict`s. The number of `dict`s correspond to the number of faces detected in the image. Every `dict` has four key-value pairs. They are:
 
 ```
 bbox: bounding box (four floating point numbers).

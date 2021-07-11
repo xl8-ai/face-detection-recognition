@@ -1,7 +1,7 @@
 from flask import Flask, request
 import jsonpickle
 import logging
-from insightface.app.face_analysis import FaceAnalysis
+from insightface.app.face_analysis import FaceAnalysis as FaceDetectionRecognition
 import numpy as np
 import argparse
 import io
@@ -16,9 +16,9 @@ logging.basicConfig(
 app = Flask(__name__)
 
 # gender age estimaion are bad. We don't use them here.
-fa = FaceAnalysis(det_name='retinaface_r50_v1',
-                  rec_name='arcface_r100_v1',
-                  ga_name=None)
+fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
+                               rec_name='arcface_r100_v1',
+                               ga_name=None)
 
 
 @app.route("/", methods=["POST"])
@@ -44,12 +44,12 @@ def extract_frames():
     if len(image.shape) != 3:
         app.logger.error(f"image shape: {image.shape} is not RGB!")
         del data, image
-        response = {'fa_results': None}
+        response = {'face_detection_recognition': None}
         response_pickled = jsonpickle.encode(response)
         return response_pickled
 
     app.logger.info(f"extraing features ...")
-    list_of_features = fa.get(image)
+    list_of_features = fdr.get(image)
     app.logger.info(f"features extracted!")
 
     app.logger.info(f"In total of {len(list_of_features)} faces detected!")
@@ -63,7 +63,7 @@ def extract_frames():
                         }
         results_frame.append(feature_dict)
 
-    response = {'fa_results': results_frame}
+    response = {'face_detection_recognition': results_frame}
     app.logger.info("json-pickle is done.")
 
     response_pickled = jsonpickle.encode(response)
@@ -76,6 +76,6 @@ if __name__ == '__main__':
     parser.add_argument('--gpu-id', type=int, default=-1, help='-1 means CPU')
     args = parser.parse_args()
     args = vars(args)
-    fa.prepare(ctx_id=args['gpu_id'])
+    fdr.prepare(ctx_id=args['gpu_id'])
 
     app.run(host='0.0.0.0', port=10002)

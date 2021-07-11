@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 
 
-def main(url_video2frames, url_insightface, video_path, width_max, height_max,
+def main(url_video2frames, url_face, video_path, width_max, height_max,
          fps_max, save_dir):
     os.makedirs(save_dir, exist_ok=True)
 
@@ -53,16 +53,16 @@ def main(url_video2frames, url_insightface, video_path, width_max, height_max,
 
         data = {'image': frame_bytestring}
         data = jsonpickle.encode(data)
-        response = requests.post(url_insightface, json=data)
+        response = requests.post(url_face, json=data)
         logging.info(f"{response} received")
 
         response = jsonpickle.decode(response.text)
 
-        fa_results = response['fa_results']
+        face_detection_recognition = response['face_detection_recognition']
 
-        fp = fp + '.face-analysis.pkl'
+        fp = fp + '.face-detection-recognition.pkl'
         with open(fp, 'wb') as stream:
-            pickle.dump(fa_results, stream)
+            pickle.dump(face_detection_recognition, stream)
         logging.info(f"{fp} saved")
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--url-video2frames', type=str,
                         default='http://127.0.0.1:10001/')
 
-    parser.add_argument('--url-insightface', type=str,
+    parser.add_argument('--url-face', type=str,
                         default='http://127.0.0.1:10002/')
     parser.add_argument('--video-path', type=str)
     parser.add_argument('--width-max', type=int, default=1280)
