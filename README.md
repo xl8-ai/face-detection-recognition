@@ -13,7 +13,7 @@ You can either run the `app.py` directly with Python3 or in a docker container.
 First download the models and unzip them.
 
 ```bash
-wget https://github.com/taeert/face-detection-recognition/releases/download/models/models.zip
+wget https://github.com/tae898/face-detection-recognition/releases/download/models/models.zip
 
 unzip models.zip
 ```
