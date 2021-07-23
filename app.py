@@ -22,7 +22,7 @@ fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
 
 
 @app.route("/", methods=["POST"])
-def extract_frames():
+def face_detection_recognition():
     """
     Receive everything in json!!!
 
