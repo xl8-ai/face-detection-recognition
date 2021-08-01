@@ -16,12 +16,7 @@ Pulling and running the docker containers is easier and recommended.
 
 - Pull and run on CPU
 
-    1. Pull the image from docker hub
-        ```bash
-        docker pull tae898/face-detection-recognition:latest
-        ```
-
-    1. Run it
+    1. Pull the image from docker hub and run the container.
         ```bash
         docker run -it --rm -p 10002:10002 tae898/face-detection-recognition:latest
         ```
@@ -47,12 +42,7 @@ Pulling and running the docker containers is easier and recommended.
 
 - Pull and run on GPU
 
-    1. Pull the image from docker hub
-        ```bash
-        docker pull tae898/face-detection-recognition-cuda:latest
-        ```
-
-    1. Run it
+    1. Pull the image from docker hub and run the container.
         ```bash
         docker run -it --rm -p 10002:10002 --gpus all tae898/face-detection-recognition-cuda:latest
         ```
