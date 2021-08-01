@@ -1,77 +1,112 @@
 # Face detection and recognition
 
-This repo is forked from https://github.com/deepinsight/insightface. We use their face detection (retinaface) and face recognition (arcface).
+This repo is forked from https://github.com/deepinsight/insightface. I use their face detection ([retinaface](https://paperswithcode.com/paper/190500641)) and face recognition ([arcface](https://paperswithcode.com/paper/arcface-additive-angular-margin-loss-for-deep)).
 
 I used to use their gender and age estimation as well, but the accuracy is very bad so I had to drop it.
 
-## Running a flask server.
+## Flask server.
 
 I made a light-weight flask server that loads the modules and waits for the client calls. 
 
-You can either run the `app.py` directly with Python3 or in a docker container.
+You can either run the `app.py` directly in Python3 or in a docker container.
 
-First download the models and unzip them.
+Pulling and running the docker containers is easier and recommended.
 
-```bash
-wget https://github.com/tae898/face-detection-recognition/releases/download/models/models.zip
+### Run in a docker container (recommended)
 
-unzip models.zip
-```
+- Pull and run on CPU
 
+    1. Pull the image from docker hub
+        ```bash
+        docker pull tae898/face-detection-recognition:latest
+        ```
+
+    1. Run it
+        ```bash
+        docker run -it --rm -p 10002:10002 tae898/face-detection-recognition:latest
+        ```
+
+    1. Build it (optional)
+                
+        If you want to build this container from scratch for whatever reason, you can do so.
+
+        Make sure your current directory is the root directory of this repo.
+
+        First download the models and unzip them.
+
+        ```bash
+        wget https://github.com/tae898/face-detection-recognition/releases/download/models/models.zip
+
+        unzip models.zip
+        ```
+
+        And build it.        
+        ```bash
+        docker build -t face-detection-recognition .  
+        ```
+
+- Pull and run on GPU
+
+    1. Pull the image from docker hub
+        ```bash
+        docker pull tae898/face-detection-recognition-cuda:latest
+        ```
+
+    1. Run it
+        ```bash
+        docker run -it --rm -p 10002:10002 --gpus all tae898/face-detection-recognition-cuda:latest
+        ```
+
+    1. Build it (optional)
+
+        If you want to build this container from scratch for whatever reason, you can do so.
+
+        Make sure your current directory is the root directory of this repo.
+
+        First download the models and unzip them.
+
+        ```bash
+        wget https://github.com/tae898/face-detection-recognition/releases/download/models/models.zip
+
+        unzip models.zip
+        ```
+
+        And build it.        
+        ```bash
+        docker build -f Dockerfile-cuda -t face-detection-recognition-cuda .  
+        ```
 
 ### Run directly (CPU only)
 
-1. Go to the insightface directory (i.e. `cd insightface`)
+First your current directory should be the root directory of this repo.
+
+
+1. Download the models and unzip them.
+    ```bash
+    wget https://github.com/tae898/face-detection-recognition/releases/download/models/models.zip
+
+    unzip models.zip
+    ```
 
 1. Install the requirements.
     ```bash
     pip3 install -r requirements.txt
     ```
 
-1. Install the insightface python package.
+2. Install the insightface python package.
 
     ```bash
     cd python-package && pip install . && cd ..
     ```
 
-2. Run both apps.
+3. Run both apps.
     ```bash
     python3 app.py --gpu-id -1
     ```
 
-### Run in a docker container (recommended)
-
-- Run on CPU
-
-  1. Go to the insightface directory (i.e. `cd insightface`)
-  
-  2. Build the container.
-      ```bash
-      docker build -t face-detection-recognition .  
-      ```
-
-  3. Run it.
-      ```bash
-      docker run -it --rm -p 10002:10002 face-detection-recognition
-      ```
-
-- Run on GPU
-
-  1. Go to the insightface directory (i.e. `cd insightface`)
-
-  2. Build the container.
-      ```bash
-      docker build -f Dockerfile-cuda -t face-detection-recognition-cuda .  
-      ```
-
-  3. Run it.
-      ```bash
-      docker run -it --rm -p 10002:10002 --gpus all face-detection-recognition-cuda
-      ```
-
 ## Making a REST POST request to the flask server.
 
-You should send an image as json. I know this is not conventional but somehow this works really good. Below is an example code.
+You should [send an image as json](https://jsonpickle.github.io/). I know this is not conventional but somehow this works really good. Below is an example code.
 
 ```python
 import jsonpickle
