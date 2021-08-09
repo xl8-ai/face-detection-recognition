@@ -6,6 +6,7 @@ import numpy as np
 import argparse
 import io
 from PIL import Image
+from utils import resize_square_image, get_original_bbox, get_original_lm
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,9 +24,7 @@ fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
 
 @app.route("/", methods=["POST"])
 def face_detection_recognition():
-    """
-    Receive everything in json!!!
-
+    """Receive everything in json!!!
     """
     app.logger.debug(f"Receiving data ...")
     data = request.json
@@ -37,6 +36,11 @@ def face_detection_recognition():
 
     app.logger.debug(f"Reading a PIL image ...")
     image = Image.open(image)
+    image_size_original = image.size
+
+    app.logger.debug(f"Resizing a PIL image to 640 by 640 ...")
+    image = resize_square_image(image, 640, background_color=(0, 0, 0))
+    image_size_new = image.size
 
     app.logger.debug(f"Conveting a PIL image to a numpy array ...")
     image = np.array(image)
@@ -56,9 +60,11 @@ def face_detection_recognition():
 
     results_frame = []
     for features in list_of_features:
-        feature_dict = {'bbox': features.bbox,
+        bbox = get_original_bbox(features.bbox, image_size_original, image_size_new)
+        landmark = get_original_lm(features.landmark, image_size_original, image_size_new)
+        feature_dict = {'bbox': bbox,
                         'det_score': features.det_score,
-                        'landmark': features.landmark,
+                        'landmark': landmark,
                         'normed_embedding': features.normed_embedding
                         }
         results_frame.append(feature_dict)
@@ -79,3 +85,5 @@ if __name__ == '__main__':
     fdr.prepare(ctx_id=args['gpu_id'])
 
     app.run(host='0.0.0.0', port=10002)
+
+
