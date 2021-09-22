@@ -76,6 +76,9 @@ First your current directory should be the root directory of this repo.
     wget https://github.com/tae898/face-detection-recognition/releases/download/models/models.zip
 
     unzip models.zip
+
+    mkdir -p ~/.insightface/
+    mv models ~/.insightface/
     ```
 
 1. Install the requirements.
