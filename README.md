@@ -4,6 +4,8 @@ This repo is forked from https://github.com/deepinsight/insightface. I use their
 
 I used to use their gender and age estimation as well, but the accuracy is very bad so I had to drop it.
 
+I have a new age-gender estimation model. Check out [the repo](https://github.com/tae898/age-gender) and [the demo video](https://youtu.be/Dna_Hp-s78I).
+
 ## Flask server.
 
 I made a light-weight flask server that loads the modules and waits for the client calls. 
