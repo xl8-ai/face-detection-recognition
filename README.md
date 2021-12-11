@@ -129,6 +129,10 @@ landmark: five facial landmarks (5 by 2 float array)
 normed_embedding: face embedding (512-dimensional floating point vector)
 ```
 
+## Troubleshooting
+
+The best way to find and solve your problems is to see in the github issue tab. If you can't find what you want, feel free to raise an issue. We are pretty responsive.
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated**.
