@@ -1,5 +1,7 @@
 # Face detection and recognition
 
+[![DOI](https://zenodo.org/badge/358311422.svg)](https://zenodo.org/badge/latestdoi/358311422)
+
 This repo is forked from https://github.com/deepinsight/insightface. I use their face detection ([retinaface](https://paperswithcode.com/paper/190500641)) and face recognition ([arcface](https://paperswithcode.com/paper/arcface-additive-angular-margin-loss-for-deep)).
 
 I used to use their gender and age estimation as well, but the accuracy is very bad so I had to drop it.
