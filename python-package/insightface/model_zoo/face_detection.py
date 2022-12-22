@@ -448,7 +448,7 @@ class FaceDetector:
         return keep
 
 
-def get_retinaface(name, rac='net3', root='~/.insightface/models', **kwargs):
+def get_retinaface(name, rac='net3', root='models', **kwargs):
     from .model_store import get_model_file
     _file = get_model_file("retinaface_%s" % name, root=root)
     return FaceDetector(_file, rac)

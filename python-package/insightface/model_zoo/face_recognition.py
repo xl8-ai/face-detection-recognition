@@ -65,7 +65,7 @@ class FaceRecognition:
         return sim
 
 
-def get_arcface(name, download=True, root='~/.insightface/models', **kwargs):
+def get_arcface(name, download=True, root='models', **kwargs):
     if not download:
         return FaceRecognition(name, False, None)
     else:

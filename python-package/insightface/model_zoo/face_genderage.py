@@ -60,7 +60,7 @@ class FaceGenderage:
         return gender, age
 
 
-def get_genderage(name, download=True, root='~/.insightface/models', **kwargs):
+def get_genderage(name, download=True, root='models', **kwargs):
     if not download:
         return FaceGenderage(name, False, None)
     else:

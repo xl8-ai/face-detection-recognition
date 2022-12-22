@@ -27,7 +27,7 @@ def get_model(name, **kwargs):
     ----------
     name : str
         Name of the model.
-    root : str, default '~/.insightface/models'
+    root : str, default 'models'
         Location for keeping the model parameters.
 
     Returns

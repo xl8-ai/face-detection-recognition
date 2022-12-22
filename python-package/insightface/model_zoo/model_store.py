@@ -43,7 +43,7 @@ def find_params_file(dir_path):
     return paths[-1]
 
 
-def get_model_file(name, root=os.path.join('~', '.insightface', 'models')):
+def get_model_file(name, root=os.path.join('models')):
     r"""Return location for the pretrained on local file system.
 
     This function will download from online model zoo when model cannot be found or has mismatch.
