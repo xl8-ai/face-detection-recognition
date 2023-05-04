@@ -1,3 +1,4 @@
+import threading
 from flask import Flask, request
 import jsonpickle
 import logging
@@ -15,6 +16,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+lock = threading.Lock()
 
 # gender age estimaion are bad. We don't use them here.
 fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
@@ -53,7 +55,11 @@ def face_detection_recognition():
         return response_pickled
 
     app.logger.info(f"extraing features ...")
+    app.logger.info(f"acquire lock...")
+    lock.acquire()
     list_of_features = fdr.get(image)
+    lock.release()
+    
     app.logger.info(f"features extracted!")
 
     app.logger.info(f"In total of {len(list_of_features)} faces detected!")
