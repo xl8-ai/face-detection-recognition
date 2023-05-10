@@ -56,9 +56,8 @@ def face_detection_recognition():
 
     app.logger.info(f"extraing features ...")
     app.logger.info(f"acquire lock...")
-    lock.acquire()
-    list_of_features = fdr.get(image)
-    lock.release()
+    with lock:
+        list_of_features = fdr.get(image)
     
     app.logger.info(f"features extracted!")
 
