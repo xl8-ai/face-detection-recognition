@@ -1,0 +1,1 @@
+docker build -f Dockerfile-cuda -t leo/face-detection-recognition-cuda .
