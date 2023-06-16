@@ -1,4 +1,6 @@
 from __future__ import division
+import os
+import pdb
 import mxnet as mx
 import numpy as np
 import mxnet.ndarray as nd
@@ -9,6 +11,7 @@ __all__ = [
     'retinaface_mnet025_v2', 'get_retinaface'
 ]
 
+BATCH_SIZE = int(os.environ.get("BATCH_SIZE", 1))
 
 def _whctrs(anchor):
     """
@@ -221,9 +224,9 @@ class FaceDetector:
             ctx = mx.cpu()
         model = mx.mod.Module(symbol=sym, context=ctx, label_names=None)
         if fix_image_size is not None:
-            data_shape = (1, 3) + fix_image_size
+            data_shape = (BATCH_SIZE, 3) + fix_image_size
         else:
-            data_shape = (1, 3) + self.default_image_size
+            data_shape = (BATCH_SIZE, 3) + self.default_image_size
         model.bind(data_shapes=[('data', data_shape)])
         model.set_params(arg_params, aux_params)
         #warmup
@@ -323,9 +326,10 @@ class FaceDetector:
                             fy=scale,
                             interpolation=cv2.INTER_LINEAR)
         im_info = [im.shape[0], im.shape[1]]
-        im_tensor = np.zeros((1, 3, im.shape[0], im.shape[1]))
-        for i in range(3):
-            im_tensor[0, i, :, :] = im[:, :, 2 - i]
+        im_tensor = np.zeros((BATCH_SIZE, 3, im.shape[0], im.shape[1]))
+        for k in range(BATCH_SIZE):
+            for i in range(3):
+                im_tensor[k, i, :, :] = im[:, :, 2 - i]
         data = nd.array(im_tensor)
         db = mx.io.DataBatch(data=(data, ),
                              provide_data=[('data', data.shape)])
@@ -357,27 +361,31 @@ class FaceDetector:
                     self.anchor_plane_cache[key] = anchors
 
             scores = clip_pad(scores, (height, width))
-            scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
+            scores2 = scores.transpose((0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 1))
 
-            bbox_deltas = clip_pad(bbox_deltas, (height, width))
-            bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1))
-            bbox_pred_len = bbox_deltas.shape[3] // A
-            bbox_deltas = bbox_deltas.reshape((-1, bbox_pred_len))
+            bbox_deltas2 = clip_pad(bbox_deltas, (height, width))
+            bbox_deltas3 = bbox_deltas2.transpose((0, 2, 3, 1))
+            bbox_pred_len = bbox_deltas3.shape[3] // A
+            bbox_deltas4 = bbox_deltas3.reshape((-1, bbox_pred_len))
+            bbox_deltas4 = bbox_deltas3.reshape((BATCH_SIZE, -1, bbox_pred_len))
+            
+            k = 0
 
-            proposals = bbox_pred(anchors, bbox_deltas)
+            proposals = bbox_pred(anchors, bbox_deltas4[k])
             #proposals = clip_boxes(proposals, im_info[:2])
 
-            scores_ravel = scores.ravel()
+            scores_ravel = scores2[k].ravel()
             order = np.where(scores_ravel >= threshold)[0]
+            # pdb.set_trace()
             proposals = proposals[order, :]
-            scores = scores[order]
+            scores3 = scores2[order]
 
             proposals[:, 0:4] /= scale
 
             proposals_list.append(proposals)
-            scores_list.append(scores)
+            scores_list.append(scores3)
 
-            if self.use_landmarks:
+            if False and self.use_landmarks:
                 idx += 1
                 landmark_deltas = net_out[idx].asnumpy()
                 landmark_deltas = clip_pad(landmark_deltas, (height, width))
