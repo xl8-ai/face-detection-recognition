@@ -335,6 +335,7 @@ class FaceDetector:
                              provide_data=[('data', data.shape)])
         self.model.forward(db, is_train=False)
         net_out = self.model.get_outputs()
+        # pdb.set_trace()
         for _idx, s in enumerate(self._feat_stride_fpn):
             _key = 'stride%s' % s
             stride = int(s)
@@ -376,22 +377,21 @@ class FaceDetector:
 
             scores_ravel = scores2[k].ravel()
             order = np.where(scores_ravel >= threshold)[0]
-            # pdb.set_trace()
             proposals = proposals[order, :]
-            scores3 = scores2[order]
+            scores3 = scores2[k][order]
 
             proposals[:, 0:4] /= scale
 
             proposals_list.append(proposals)
             scores_list.append(scores3)
 
-            if False and self.use_landmarks:
+            if self.use_landmarks:
                 idx += 1
                 landmark_deltas = net_out[idx].asnumpy()
                 landmark_deltas = clip_pad(landmark_deltas, (height, width))
                 landmark_pred_len = landmark_deltas.shape[1] // A
                 landmark_deltas = landmark_deltas.transpose(
-                    (0, 2, 3, 1)).reshape((-1, 5, landmark_pred_len // 5))
+                    (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
                 landmark_deltas *= self.landmark_std
                 #print(landmark_deltas.shape, landmark_deltas)
                 landmarks = landmark_pred(anchors, landmark_deltas)
