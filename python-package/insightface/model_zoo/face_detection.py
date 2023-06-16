@@ -336,94 +336,100 @@ class FaceDetector:
         self.model.forward(db, is_train=False)
         net_out = self.model.get_outputs()
         # pdb.set_trace()
-        for _idx, s in enumerate(self._feat_stride_fpn):
-            _key = 'stride%s' % s
-            stride = int(s)
-            if self.use_landmarks:
-                idx = _idx * 3
-            else:
-                idx = _idx * 2
-            scores = net_out[idx].asnumpy()
-            scores = scores[:, self._num_anchors['stride%s' % s]:, :, :]
-            idx += 1
-            bbox_deltas = net_out[idx].asnumpy()
-
-            height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
-            A = self._num_anchors['stride%s' % s]
-            K = height * width
-            key = (height, width, stride)
-            if key in self.anchor_plane_cache:
-                anchors = self.anchor_plane_cache[key]
-            else:
-                anchors_fpn = self._anchors_fpn['stride%s' % s]
-                anchors = anchors_plane(height, width, stride, anchors_fpn)
-                anchors = anchors.reshape((K * A, 4))
-                if len(self.anchor_plane_cache) < 100:
-                    self.anchor_plane_cache[key] = anchors
-
-            scores = clip_pad(scores, (height, width))
-            scores2 = scores.transpose((0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 1))
-
-            bbox_deltas2 = clip_pad(bbox_deltas, (height, width))
-            bbox_deltas3 = bbox_deltas2.transpose((0, 2, 3, 1))
-            bbox_pred_len = bbox_deltas3.shape[3] // A
-            bbox_deltas4 = bbox_deltas3.reshape((-1, bbox_pred_len))
-            bbox_deltas4 = bbox_deltas3.reshape((BATCH_SIZE, -1, bbox_pred_len))
-            
-            k = 0
-
-            proposals = bbox_pred(anchors, bbox_deltas4[k])
-            #proposals = clip_boxes(proposals, im_info[:2])
-
-            scores_ravel = scores2[k].ravel()
-            order = np.where(scores_ravel >= threshold)[0]
-            proposals = proposals[order, :]
-            scores3 = scores2[k][order]
-
-            proposals[:, 0:4] /= scale
-
-            proposals_list.append(proposals)
-            scores_list.append(scores3)
-
-            if self.use_landmarks:
+        list_det = []
+        list_landmarks = []
+        for k in range(BATCH_SIZE):
+            for _idx, s in enumerate(self._feat_stride_fpn):
+                _key = 'stride%s' % s
+                stride = int(s)
+                if self.use_landmarks:
+                    idx = _idx * 3
+                else:
+                    idx = _idx * 2
+                scores = net_out[idx].asnumpy()
+                scores = scores[:, self._num_anchors['stride%s' % s]:, :, :]
                 idx += 1
-                landmark_deltas = net_out[idx].asnumpy()
-                landmark_deltas = clip_pad(landmark_deltas, (height, width))
-                landmark_pred_len = landmark_deltas.shape[1] // A
-                landmark_deltas = landmark_deltas.transpose(
-                    (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
-                landmark_deltas *= self.landmark_std
-                #print(landmark_deltas.shape, landmark_deltas)
-                landmarks = landmark_pred(anchors, landmark_deltas)
-                landmarks = landmarks[order, :]
+                bbox_deltas = net_out[idx].asnumpy()
 
-                landmarks[:, :, 0:2] /= scale
-                landmarks_list.append(landmarks)
+                height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
+                A = self._num_anchors['stride%s' % s]
+                K = height * width
+                key = (height, width, stride)
+                if key in self.anchor_plane_cache:
+                    anchors = self.anchor_plane_cache[key]
+                else:
+                    anchors_fpn = self._anchors_fpn['stride%s' % s]
+                    anchors = anchors_plane(height, width, stride, anchors_fpn)
+                    anchors = anchors.reshape((K * A, 4))
+                    if len(self.anchor_plane_cache) < 100:
+                        self.anchor_plane_cache[key] = anchors
 
-        proposals = np.vstack(proposals_list)
-        landmarks = None
-        if proposals.shape[0] == 0:
+                scores = clip_pad(scores, (height, width))
+                scores2 = scores.transpose((0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 1))
+
+                bbox_deltas2 = clip_pad(bbox_deltas, (height, width))
+                bbox_deltas3 = bbox_deltas2.transpose((0, 2, 3, 1))
+                bbox_pred_len = bbox_deltas3.shape[3] // A
+                bbox_deltas4 = bbox_deltas3.reshape((-1, bbox_pred_len))
+                bbox_deltas4 = bbox_deltas3.reshape((BATCH_SIZE, -1, bbox_pred_len))
+
+                proposals = bbox_pred(anchors, bbox_deltas4[k])
+                #proposals = clip_boxes(proposals, im_info[:2])
+
+                scores_ravel = scores2[k].ravel()
+                order = np.where(scores_ravel >= threshold)[0]
+                proposals = proposals[order, :]
+                scores3 = scores2[k][order]
+
+                proposals[:, 0:4] /= scale
+
+                proposals_list.append(proposals)
+                scores_list.append(scores3)
+
+                if self.use_landmarks:
+                    idx += 1
+                    landmark_deltas = net_out[idx].asnumpy()
+                    landmark_deltas = clip_pad(landmark_deltas, (height, width))
+                    landmark_pred_len = landmark_deltas.shape[1] // A
+                    landmark_deltas = landmark_deltas.transpose(
+                        (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
+                    landmark_deltas *= self.landmark_std
+                    #print(landmark_deltas.shape, landmark_deltas)
+                    landmarks = landmark_pred(anchors, landmark_deltas)
+                    landmarks = landmarks[order, :]
+
+                    landmarks[:, :, 0:2] /= scale
+                    landmarks_list.append(landmarks)
+
+            proposals = np.vstack(proposals_list)
+            landmarks = None
+            if proposals.shape[0] == 0:
+                if self.use_landmarks:
+                    landmarks = np.zeros((0, 5, 2))
+                
+                list_det.append(np.zeros((0, 5)))
+                list_landmarks.append(landmarks)
+                # return np.zeros((0, 5)), landmarks
+                continue
+            scores = np.vstack(scores_list)
+            scores_ravel = scores.ravel()
+            order = scores_ravel.argsort()[::-1]
+            proposals = proposals[order, :]
+            scores = scores[order]
             if self.use_landmarks:
-                landmarks = np.zeros((0, 5, 2))
-            return np.zeros((0, 5)), landmarks
-        scores = np.vstack(scores_list)
-        scores_ravel = scores.ravel()
-        order = scores_ravel.argsort()[::-1]
-        proposals = proposals[order, :]
-        scores = scores[order]
-        if self.use_landmarks:
-            landmarks = np.vstack(landmarks_list)
-            landmarks = landmarks[order].astype(np.float32, copy=False)
+                landmarks = np.vstack(landmarks_list)
+                landmarks = landmarks[order].astype(np.float32, copy=False)
 
-        pre_det = np.hstack((proposals[:, 0:4], scores)).astype(np.float32,
-                                                                copy=False)
-        keep = self.nms(pre_det)
-        det = np.hstack((pre_det, proposals[:, 4:]))
-        det = det[keep, :]
-        if self.use_landmarks:
-            landmarks = landmarks[keep]
-
-        return det, landmarks
+            pre_det = np.hstack((proposals[:, 0:4], scores)).astype(np.float32,
+                                                                    copy=False)
+            keep = self.nms(pre_det)
+            det = np.hstack((pre_det, proposals[:, 4:]))
+            det = det[keep, :]
+            if self.use_landmarks:
+                landmarks = landmarks[keep]
+            list_det.append(det)
+            list_landmarks.append(landmarks)
+        return list_det, list_landmarks
 
     def nms(self, dets):
         thresh = self.nms_threshold

@@ -53,23 +53,26 @@ def face_detection_recognition():
         return response_pickled
 
     app.logger.info(f"extraing features ...")
-    list_of_features = fdr.get(image)
+    list_list_of_features = fdr.get(image)
     app.logger.info(f"features extracted!")
+    
+    list_results_frame = []
+    for list_of_features in list_list_of_features:
+        app.logger.info(f"In total of {len(list_of_features)} faces detected!")
 
-    app.logger.info(f"In total of {len(list_of_features)} faces detected!")
+        results_frame = []
+        for features in list_of_features:
+            bbox = get_original_bbox(features.bbox, image_size_original, image_size_new)
+            landmark = get_original_lm(features.landmark, image_size_original, image_size_new)
+            feature_dict = {'bbox': bbox,
+                            'det_score': features.det_score,
+                            'landmark': landmark,
+                            'normed_embedding': features.normed_embedding
+                            }
+            results_frame.append(feature_dict)
+        list_results_frame.append(results_frame)
 
-    results_frame = []
-    for features in list_of_features:
-        bbox = get_original_bbox(features.bbox, image_size_original, image_size_new)
-        landmark = get_original_lm(features.landmark, image_size_original, image_size_new)
-        feature_dict = {'bbox': bbox,
-                        'det_score': features.det_score,
-                        'landmark': landmark,
-                        'normed_embedding': features.normed_embedding
-                        }
-        results_frame.append(feature_dict)
-
-    response = {'face_detection_recognition': results_frame}
+    response = {'face_detection_recognition': list_results_frame}
     app.logger.info("json-pickle is done.")
 
     response_pickled = jsonpickle.encode(response)
