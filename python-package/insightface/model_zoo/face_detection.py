@@ -1,6 +1,7 @@
 from __future__ import division
 import os
 import pdb
+import time
 import mxnet as mx
 import numpy as np
 import mxnet.ndarray as nd
@@ -312,33 +313,51 @@ class FaceDetector:
             zip(self.fpn_keys,
                 [anchors.shape[0] for anchors in self._anchors_fpn.values()]))
 
-    def detect(self, img, threshold=0.5, scale=1.0):
+    def detect(self, imgs, threshold=0.5, scale=1.0):
+        st = time.time()
         proposals_list = []
         scores_list = []
         landmarks_list = []
-        if scale == 1.0:
-            im = img
-        else:
-            im = cv2.resize(img,
-                            None,
-                            None,
-                            fx=scale,
-                            fy=scale,
-                            interpolation=cv2.INTER_LINEAR)
-        im_info = [im.shape[0], im.shape[1]]
-        im_tensor = np.zeros((BATCH_SIZE, 3, im.shape[0], im.shape[1]))
+        ims = []
+        for k, img in enumerate(imgs):
+            if scale == 1.0:
+                im = img
+            else:
+                im = cv2.resize(img,
+                                None,
+                                None,
+                                fx=scale,
+                                fy=scale,
+                                interpolation=cv2.INTER_LINEAR)
+            ims.append(im)
+            print(f"resize {time.time() - st}")
+        
+        # im_info = [im.shape[0], im.shape[1]]
+        im_tensor = np.zeros((BATCH_SIZE, 3, ims[0].shape[0], ims[0].shape[1]))
         for k in range(BATCH_SIZE):
             for i in range(3):
-                im_tensor[k, i, :, :] = im[:, :, 2 - i]
+                im_tensor[k, i, :, :] = ims[k][:, :, 2 - i]
+        print(f"rearrange {time.time() - st}")
+        
         data = nd.array(im_tensor)
         db = mx.io.DataBatch(data=(data, ),
-                             provide_data=[('data', data.shape)])
+                            provide_data=[('data', data.shape)])
+        
         self.model.forward(db, is_train=False)
+        print(f"forward() {time.time() - st}")
         net_out = self.model.get_outputs()
+        print(f"get_outputs() {time.time() - st}")
+        
         # pdb.set_trace()
         list_det = []
         list_landmarks = []
         for k in range(BATCH_SIZE):
+            if False:
+                list_det.append(np.zeros((0, 5)))
+                list_landmarks.append(np.zeros((0, 5, 2)))
+                continue
+                
+            print(f"Starting batch {k}, {time.time() - st}")
             for _idx, s in enumerate(self._feat_stride_fpn):
                 _key = 'stride%s' % s
                 stride = int(s)
@@ -395,7 +414,9 @@ class FaceDetector:
                         (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
                     landmark_deltas *= self.landmark_std
                     #print(landmark_deltas.shape, landmark_deltas)
+                    print(f"before landmark_pred {k}, {time.time() - st}")
                     landmarks = landmark_pred(anchors, landmark_deltas)
+                    print(f"after landmark_pred {k}, {time.time() - st}")
                     landmarks = landmarks[order, :]
 
                     landmarks[:, :, 0:2] /= scale
@@ -423,12 +444,15 @@ class FaceDetector:
             pre_det = np.hstack((proposals[:, 0:4], scores)).astype(np.float32,
                                                                     copy=False)
             keep = self.nms(pre_det)
+            print(f"nms {k}, {time.time() - st}")
             det = np.hstack((pre_det, proposals[:, 4:]))
             det = det[keep, :]
             if self.use_landmarks:
                 landmarks = landmarks[keep]
             list_det.append(det)
             list_landmarks.append(landmarks)
+            
+        print(f"finish {time.time() - st}")
         return list_det, list_landmarks
 
     def nms(self, dets):

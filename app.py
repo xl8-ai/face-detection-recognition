@@ -31,29 +31,31 @@ def face_detection_recognition():
     data = jsonpickle.decode(data)
 
     app.logger.debug(f"decompressing image ...")
-    image = data['image']
-    image = io.BytesIO(image)
+    images = []
+    for image in data['images']:
+        image = io.BytesIO(image)
 
-    app.logger.debug(f"Reading a PIL image ...")
-    image = Image.open(image)
-    image_size_original = image.size
+        app.logger.debug(f"Reading a PIL image ...")
+        image = Image.open(image)
+        image_size_original = image.size
 
-    app.logger.debug(f"Resizing a PIL image to 640 by 640 ...")
-    image = resize_square_image(image, 640, background_color=(0, 0, 0))
-    image_size_new = image.size
+        app.logger.debug(f"Resizing a PIL image to 640 by 640 ...")
+        image = resize_square_image(image, 640, background_color=(0, 0, 0))
+        image_size_new = image.size
 
-    app.logger.debug(f"Conveting a PIL image to a numpy array ...")
-    image = np.array(image)
+        app.logger.debug(f"Conveting a PIL image to a numpy array ...")
+        image = np.array(image)
 
-    if len(image.shape) != 3:
-        app.logger.error(f"image shape: {image.shape} is not RGB!")
-        del data, image
-        response = {'face_detection_recognition': None}
-        response_pickled = jsonpickle.encode(response)
-        return response_pickled
+        if len(image.shape) != 3:
+            app.logger.error(f"image shape: {image.shape} is not RGB!")
+            del data, image
+            response = {'face_detection_recognition': None}
+            response_pickled = jsonpickle.encode(response)
+            return response_pickled
+        images.append(image)
 
     app.logger.info(f"extraing features ...")
-    list_list_of_features = fdr.get(image)
+    list_list_of_features = fdr.get(images)
     app.logger.info(f"features extracted!")
     
     list_results_frame = []

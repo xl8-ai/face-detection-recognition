@@ -40,13 +40,13 @@ class FaceAnalysis:
         if self.ga_model is not None:
             self.ga_model.prepare(ctx_id)
 
-    def get(self, img, det_thresh=0.8, det_scale=1.0, max_num=0):
-        list_bboxes, list_landmarks = self.det_model.detect(img,
+    def get(self, imgs, det_thresh=0.8, det_scale=1.0, max_num=0):
+        list_bboxes, list_landmarks = self.det_model.detect(imgs,
                                                   threshold=det_thresh,
                                                   scale=det_scale)
         
         list_ret = []
-        for bboxes, landmarks in zip(list_bboxes, list_landmarks):
+        for img, bboxes, landmarks in zip(imgs, list_bboxes, list_landmarks):
             if bboxes.shape[0] == 0:
                 list_ret.append([])
                 continue
