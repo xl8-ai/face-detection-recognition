@@ -6,6 +6,15 @@ import mxnet as mx
 import numpy as np
 import mxnet.ndarray as nd
 import cv2
+from mxnet import profiler
+
+from .post_processing import post_processing_face_detection
+
+_DEBUG = bool(int(os.environ.get("DEBUG", "0")))
+_OLD = bool(int(os.environ.get("OLD", "0")))
+_PROFILE = bool(int(os.environ.get("PROFILE", "0")))
+_PROFILE_TRG = 10
+profile_cnt = 0
 
 __all__ = [
     'FaceDetector', 'retinaface_r50_v1', 'retinaface_mnet025_v1',
@@ -213,6 +222,11 @@ class FaceDetector:
         self.rac = rac
         self.default_image_size = (480, 640)
 
+        profiler.set_config(profile_all=True,
+            aggregate_stats=True,
+            continuous_dump=True,
+            filename='profile_output.json')
+
     def prepare(self, ctx_id, nms=0.4, fix_image_size=None):
         pos = self.param_file.rfind('-')
         prefix = self.param_file[0:pos]
@@ -234,7 +248,6 @@ class FaceDetector:
         data = mx.nd.zeros(shape=data_shape)
         db = mx.io.DataBatch(data=(data, ))
         model.forward(db, is_train=False)
-        out = model.get_outputs()[0].asnumpy()
         self.model = model
         self.nms_threshold = nms
 
@@ -314,6 +327,7 @@ class FaceDetector:
                 [anchors.shape[0] for anchors in self._anchors_fpn.values()]))
 
     def detect(self, imgs, threshold=0.5, scale=1.0):
+        global profile_cnt
         st = time.time()
         proposals_list = []
         scores_list = []
@@ -330,7 +344,7 @@ class FaceDetector:
                                 fy=scale,
                                 interpolation=cv2.INTER_LINEAR)
             ims.append(im)
-            print(f"resize {time.time() - st}")
+        print(f"resize {time.time() - st}")
         
         # im_info = [im.shape[0], im.shape[1]]
         im_tensor = np.zeros((BATCH_SIZE, 3, ims[0].shape[0], ims[0].shape[1]))
@@ -340,118 +354,139 @@ class FaceDetector:
         print(f"rearrange {time.time() - st}")
         
         data = nd.array(im_tensor)
+        print(f"nd.array() {time.time() - st}")
         db = mx.io.DataBatch(data=(data, ),
                             provide_data=[('data', data.shape)])
-        
+        print(f"mx.io.DataBatch() {time.time() - st}")
+        if _PROFILE:
+            profile_cnt += 1
+            if profile_cnt == _PROFILE_TRG:
+                profiler.set_state('run')
         self.model.forward(db, is_train=False)
         print(f"forward() {time.time() - st}")
         net_out = self.model.get_outputs()
         print(f"get_outputs() {time.time() - st}")
+        mx.nd.waitall()
+        print(f"wait_to_read() {time.time() - st}")
+        if _PROFILE:
+            if profile_cnt == _PROFILE_TRG:
+                profiler.set_state('stop')
+                print(profiler.dumps())
+                exit(7)
         
-        # pdb.set_trace()
-        list_det = []
-        list_landmarks = []
-        for k in range(BATCH_SIZE):
-            if False:
-                list_det.append(np.zeros((0, 5)))
-                list_landmarks.append(np.zeros((0, 5, 2)))
-                continue
-                
-            print(f"Starting batch {k}, {time.time() - st}")
-            for _idx, s in enumerate(self._feat_stride_fpn):
-                _key = 'stride%s' % s
-                stride = int(s)
-                if self.use_landmarks:
-                    idx = _idx * 3
-                else:
-                    idx = _idx * 2
-                scores = net_out[idx].asnumpy()
-                scores = scores[:, self._num_anchors['stride%s' % s]:, :, :]
-                idx += 1
-                bbox_deltas = net_out[idx].asnumpy()
-
-                height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
-                A = self._num_anchors['stride%s' % s]
-                K = height * width
-                key = (height, width, stride)
-                if key in self.anchor_plane_cache:
-                    anchors = self.anchor_plane_cache[key]
-                else:
-                    anchors_fpn = self._anchors_fpn['stride%s' % s]
-                    anchors = anchors_plane(height, width, stride, anchors_fpn)
-                    anchors = anchors.reshape((K * A, 4))
-                    if len(self.anchor_plane_cache) < 100:
-                        self.anchor_plane_cache[key] = anchors
-
-                scores = clip_pad(scores, (height, width))
-                scores2 = scores.transpose((0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 1))
-
-                bbox_deltas2 = clip_pad(bbox_deltas, (height, width))
-                bbox_deltas3 = bbox_deltas2.transpose((0, 2, 3, 1))
-                bbox_pred_len = bbox_deltas3.shape[3] // A
-                bbox_deltas4 = bbox_deltas3.reshape((-1, bbox_pred_len))
-                bbox_deltas4 = bbox_deltas3.reshape((BATCH_SIZE, -1, bbox_pred_len))
-
-                proposals = bbox_pred(anchors, bbox_deltas4[k])
-                #proposals = clip_boxes(proposals, im_info[:2])
-
-                scores_ravel = scores2[k].ravel()
-                order = np.where(scores_ravel >= threshold)[0]
-                proposals = proposals[order, :]
-                scores3 = scores2[k][order]
-
-                proposals[:, 0:4] /= scale
-
-                proposals_list.append(proposals)
-                scores_list.append(scores3)
-
-                if self.use_landmarks:
-                    idx += 1
-                    landmark_deltas = net_out[idx].asnumpy()
-                    landmark_deltas = clip_pad(landmark_deltas, (height, width))
-                    landmark_pred_len = landmark_deltas.shape[1] // A
-                    landmark_deltas = landmark_deltas.transpose(
-                        (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
-                    landmark_deltas *= self.landmark_std
-                    #print(landmark_deltas.shape, landmark_deltas)
-                    print(f"before landmark_pred {k}, {time.time() - st}")
-                    landmarks = landmark_pred(anchors, landmark_deltas)
-                    print(f"after landmark_pred {k}, {time.time() - st}")
-                    landmarks = landmarks[order, :]
-
-                    landmarks[:, :, 0:2] /= scale
-                    landmarks_list.append(landmarks)
-
-            proposals = np.vstack(proposals_list)
-            landmarks = None
-            if proposals.shape[0] == 0:
-                if self.use_landmarks:
-                    landmarks = np.zeros((0, 5, 2))
-                
-                list_det.append(np.zeros((0, 5)))
-                list_landmarks.append(landmarks)
-                # return np.zeros((0, 5)), landmarks
-                continue
-            scores = np.vstack(scores_list)
-            scores_ravel = scores.ravel()
-            order = scores_ravel.argsort()[::-1]
-            proposals = proposals[order, :]
-            scores = scores[order]
-            if self.use_landmarks:
-                landmarks = np.vstack(landmarks_list)
-                landmarks = landmarks[order].astype(np.float32, copy=False)
-
-            pre_det = np.hstack((proposals[:, 0:4], scores)).astype(np.float32,
-                                                                    copy=False)
-            keep = self.nms(pre_det)
-            print(f"nms {k}, {time.time() - st}")
-            det = np.hstack((pre_det, proposals[:, 4:]))
-            det = det[keep, :]
-            if self.use_landmarks:
-                landmarks = landmarks[keep]
-            list_det.append(det)
-            list_landmarks.append(landmarks)
+        if _DEBUG:
+            pdb.set_trace()
             
+        if _OLD:
+            list_det = []
+            list_landmarks = []
+            for k in range(BATCH_SIZE):
+                if False:
+                    list_det.append(np.zeros((0, 5)))
+                    list_landmarks.append(np.zeros((0, 5, 2)))
+                    continue
+                    
+                print(f"Starting batch {k}, {time.time() - st}")
+                for _idx, s in enumerate(self._feat_stride_fpn):
+                    _key = 'stride%s' % s
+                    stride = int(s)
+                    if self.use_landmarks:
+                        idx = _idx * 3
+                    else:
+                        idx = _idx * 2
+                    scores = net_out[idx].asnumpy()
+                    scores = scores[:, self._num_anchors['stride%s' % s]:, :, :]
+                    idx += 1
+                    bbox_deltas = net_out[idx].asnumpy()
+
+                    height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
+                    A = self._num_anchors['stride%s' % s]
+                    K = height * width
+                    key = (height, width, stride)
+                    if key in self.anchor_plane_cache:
+                        anchors = self.anchor_plane_cache[key]
+                    else:
+                        anchors_fpn = self._anchors_fpn['stride%s' % s]
+                        anchors = anchors_plane(height, width, stride, anchors_fpn)
+                        anchors = anchors.reshape((K * A, 4))
+                        if len(self.anchor_plane_cache) < 100:
+                            self.anchor_plane_cache[key] = anchors
+
+                    scores = clip_pad(scores, (height, width))
+                    scores2 = scores.transpose((0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 1))
+
+                    bbox_deltas2 = clip_pad(bbox_deltas, (height, width))
+                    bbox_deltas3 = bbox_deltas2.transpose((0, 2, 3, 1))
+                    bbox_pred_len = bbox_deltas3.shape[3] // A
+                    bbox_deltas4 = bbox_deltas3.reshape((-1, bbox_pred_len))
+                    bbox_deltas4 = bbox_deltas3.reshape((BATCH_SIZE, -1, bbox_pred_len))
+
+                    proposals = bbox_pred(anchors, bbox_deltas4[k])
+                    #proposals = clip_boxes(proposals, im_info[:2])
+
+                    scores_ravel = scores2[k].ravel()
+                    order = np.where(scores_ravel >= threshold)[0]
+                    proposals = proposals[order, :]
+                    scores3 = scores2[k][order]
+
+                    proposals[:, 0:4] /= scale
+
+                    proposals_list.append(proposals)
+                    scores_list.append(scores3)
+
+                    if self.use_landmarks:
+                        idx += 1
+                        landmark_deltas = net_out[idx].asnumpy()
+                        landmark_deltas = clip_pad(landmark_deltas, (height, width))
+                        landmark_pred_len = landmark_deltas.shape[1] // A
+                        landmark_deltas = landmark_deltas.transpose(
+                            (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
+                        landmark_deltas *= self.landmark_std
+                        #print(landmark_deltas.shape, landmark_deltas)
+                        print(f"before landmark_pred {k}, {time.time() - st}")
+                        landmarks = landmark_pred(anchors, landmark_deltas)
+                        print(f"after landmark_pred {k}, {time.time() - st}")
+                        landmarks = landmarks[order, :]
+
+                        landmarks[:, :, 0:2] /= scale
+                        landmarks_list.append(landmarks)
+
+                proposals = np.vstack(proposals_list)
+                landmarks = None
+                if proposals.shape[0] == 0:
+                    if self.use_landmarks:
+                        landmarks = np.zeros((0, 5, 2))
+                    
+                    list_det.append(np.zeros((0, 5)))
+                    list_landmarks.append(landmarks)
+                    # return np.zeros((0, 5)), landmarks
+                    continue
+                scores = np.vstack(scores_list)
+                scores_ravel = scores.ravel()
+                order = scores_ravel.argsort()[::-1]
+                proposals = proposals[order, :]
+                scores = scores[order]
+                if self.use_landmarks:
+                    landmarks = np.vstack(landmarks_list)
+                    landmarks = landmarks[order].astype(np.float32, copy=False)
+
+                pre_det = np.hstack((proposals[:, 0:4], scores)).astype(np.float32,
+                                                                        copy=False)
+                keep = self.nms(pre_det)
+                print(f"nms {k}, {time.time() - st}")
+                det = np.hstack((pre_det, proposals[:, 4:]))
+                det = det[keep, :]
+                if self.use_landmarks:
+                    landmarks = landmarks[keep]
+                list_det.append(det)
+                list_landmarks.append(landmarks)
+        else:
+            net_out_numpied = [x.asnumpy() for x in net_out]
+            print(f"numpied() {time.time() - st}")
+            
+            list_det, list_landmarks = post_processing_face_detection(BATCH_SIZE, net_out_numpied, self.use_landmarks, \
+                self._feat_stride_fpn, self._num_anchors, self._anchors_fpn, threshold, self.landmark_std, \
+                    self.nms_threshold, scale)
         print(f"finish {time.time() - st}")
         return list_det, list_landmarks
 

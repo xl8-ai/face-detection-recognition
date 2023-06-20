@@ -1,0 +1,50 @@
+resize 3.337860107421875e-06
+rearrange 0.0026404857635498047
+nd.array() 0.005497932434082031
+mx.io.DataBatch() 0.005563020706176758
+forward() 0.00716853141784668
+get_outputs() 0.007239580154418945
+wait_to_read() 0.05415201187133789
+
+Profile Statistics:
+        Note the difference in units for different entries.
+MXNET_C_API
+=================
+Name                          Total Count        Time (ms)    Min Time (ms)    Max Time (ms)    Avg Time (ms)
+----                          -----------        ---------    -------------    -------------    -------------
+MXNDArrayWaitAll                        1          46.8500          46.8500          46.8500          46.8500
+MXExecutorForward                       1           0.8190           0.8190           0.8190           0.8190
+MXImperativeInvokeEx                    1           0.0920           0.0920           0.0920           0.0920
+MXNet C API Calls                      24           0.0240           0.0010           0.0240           0.0110
+MXExecutorOutputs                       1           0.0120           0.0120           0.0120           0.0120
+MXNDArrayGetShapeEx                     2           0.0090           0.0010           0.0080           0.0045
+MXNDArrayFree                           9           0.0050           0.0000           0.0010           0.0006
+MXNDArrayGetStorageType                 9           0.0030           0.0000           0.0010           0.0003
+MXNet C API Concurrency                48           0.0000           0.0000           0.0010           0.0000
+
+operator
+=================
+Name                          Total Count        Time (ms)    Min Time (ms)    Max Time (ms)    Avg Time (ms)
+----                          -----------        ---------    -------------    -------------    -------------
+Convolution                            82          30.2230           0.0800           1.0190           0.3686
+BatchNorm                              71           5.6340           0.0250           0.5050           0.0794
+Activation                             64           3.9200           0.0190           0.2460           0.0613
+elemwise_add                           18           2.5040           0.0270           0.3240           0.1391
+CopyCPU2GPU                             1           1.2710           1.2710           1.2710           1.2710
+UpSampling                              2           0.2760           0.1010           0.1750           0.1380
+Concat                                  3           0.2760           0.0560           0.1460           0.0920
+Pooling                                 1           0.2460           0.2460           0.2460           0.2460
+Crop                                    2           0.1520           0.0660           0.0860           0.0760
+SoftmaxActivation                       3           0.0980           0.0220           0.0400           0.0327
+Reshape                                 6           0.0350           0.0040           0.0070           0.0058
+
+
+resize 9.059906005859375e-06
+rearrange 0.0025892257690429688
+nd.array() 0.0043354034423828125
+mx.io.DataBatch() 0.004410982131958008
+forward() 0.005410909652709961
+get_outputs() 0.0054705142974853516
+wait_to_read() 0.04941248893737793
+numpied() 0.0512537956237793
+finish 0.05534195899963379
