@@ -133,7 +133,7 @@ anchor_plane_cache = {}
 def post_processing_face_detection(batch_size, net_out, 
                                    use_landmarks, _feat_stride_fpn, _num_anchors, 
                                    _anchors_fpn, threshold, landmark_std, 
-                                   nms_threshold, scale):
+                                   nms_threshold, scale, empty):
     list_det = []
     list_landmarks = []
     for k in range(batch_size):
@@ -142,7 +142,7 @@ def post_processing_face_detection(batch_size, net_out,
         landmarks_list = []
         ims = []
         
-        if False:
+        if empty:
             list_det.append(np.zeros((0, 5)))
             list_landmarks.append(np.zeros((0, 5, 2)))
             continue

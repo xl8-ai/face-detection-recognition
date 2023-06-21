@@ -14,6 +14,7 @@ _DEBUG = bool(int(os.environ.get("DEBUG", "0")))
 _OLD = bool(int(os.environ.get("OLD", "0")))
 _PROFILE = bool(int(os.environ.get("PROFILE", "0")))
 _PROFILE_TRG = 10
+_EMPTY = bool(int(os.environ.get("EMPTY", "0")))
 profile_cnt = 0
 
 __all__ = [
@@ -366,8 +367,9 @@ class FaceDetector:
         print(f"forward() {time.time() - st}")
         net_out = self.model.get_outputs()
         print(f"get_outputs() {time.time() - st}")
-        mx.nd.waitall()
-        print(f"wait_to_read() {time.time() - st}")
+        if not _EMPTY:
+            mx.nd.waitall()
+            print(f"wait_to_read() {time.time() - st}")
         if _PROFILE:
             if profile_cnt == _PROFILE_TRG:
                 profiler.set_state('stop')
@@ -481,12 +483,14 @@ class FaceDetector:
                 list_det.append(det)
                 list_landmarks.append(landmarks)
         else:
-            net_out_numpied = [x.asnumpy() for x in net_out]
-            print(f"numpied() {time.time() - st}")
+            net_out_numpied = None
+            if not _EMPTY:
+                net_out_numpied = [x.asnumpy() for x in net_out]
+                print(f"numpied() {time.time() - st}")
             
             list_det, list_landmarks = post_processing_face_detection(BATCH_SIZE, net_out_numpied, self.use_landmarks, \
                 self._feat_stride_fpn, self._num_anchors, self._anchors_fpn, threshold, self.landmark_std, \
-                    self.nms_threshold, scale)
+                    self.nms_threshold, scale, _EMPTY)
         print(f"finish {time.time() - st}")
         return list_det, list_landmarks
 
