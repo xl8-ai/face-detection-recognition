@@ -330,6 +330,7 @@ class FaceDetector:
     def detect(self, imgs, threshold=0.5, scale=1.0):
         global profile_cnt
         st = time.time()
+        print(f"start detect() abt:{st}")
         proposals_list = []
         scores_list = []
         landmarks_list = []
