@@ -64,11 +64,11 @@ def worker():
         response = {'face_detection_recognition': list_results_frame}
         app.logger.info("json-pickle is done.")
         
-        # response_pickled = jsonpickle.encode(response)
-        # result_buffer.append(response_pickled)
+        response_pickled = jsonpickle.encode(response)
+        result_buffer.append(response_pickled)
         
         app.logger.info(f"prepared response! {time.time() - st}")
-        result_buffer.append("done")
+        # result_buffer.append("done")
         
 
 thread = threading.Thread(target=worker)
