@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 import mxnet as mx
 import numpy as np
 import cv2
@@ -8,6 +9,7 @@ __all__ = [
     'arcface_mfn_v1', 'get_arcface'
 ]
 
+REC_BATCH_SIZE = int(os.environ.get("REC_BATCH_SIZE", 1))
 
 class FaceRecognition:
     def __init__(self, name, download, param_file):
@@ -33,7 +35,7 @@ class FaceRecognition:
             else:
                 ctx = mx.cpu()
             model = mx.mod.Module(symbol=sym, context=ctx, label_names=None)
-            data_shape = (1, 3) + self.image_size
+            data_shape = (REC_BATCH_SIZE, 3) + self.image_size
             model.bind(data_shapes=[('data', data_shape)])
             model.set_params(arg_params, aux_params)
             #warmup
@@ -45,17 +47,20 @@ class FaceRecognition:
         else:
             pass
 
-    def get_embedding(self, img):
+    def get_embedding(self, imgs):
         assert self.param_file and self.model
-        assert img.shape[2] == 3 and img.shape[0:2] == self.image_size
-        data = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        data = np.transpose(data, (2, 0, 1))
-        data = np.expand_dims(data, axis=0)
+        assert imgs[0].shape[2] == 3 and imgs[0].shape[0:2] == self.image_size
+        imgs_ = []
+        for img in imgs:
+            imgs_.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        data = np.array(imgs_)
+        data = np.transpose(data, (0, 3, 1, 2))
+        # data = np.expand_dims(data, axis=0)
         data = mx.nd.array(data)
         db = mx.io.DataBatch(data=(data, ))
         self.model.forward(db, is_train=False)
-        embedding = self.model.get_outputs()[0].asnumpy()
-        return embedding
+        embeddings = self.model.get_outputs()[0].asnumpy()
+        return embeddings
 
     def compute_sim(self, img1, img2):
         emb1 = self.get_embedding(img1).flatten()

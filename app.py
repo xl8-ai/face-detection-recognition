@@ -21,8 +21,8 @@ app = Flask(__name__)
 
 # gender age estimaion are bad. We don't use them here.
 fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
-                               rec_name=None,
-                            #    rec_name='arcface_r100_v1',
+                            #    rec_name=None,
+                               rec_name='arcface_r100_v1',
                                ga_name=None)
 
 

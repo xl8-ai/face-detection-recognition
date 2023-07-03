@@ -1,5 +1,6 @@
 from __future__ import division
 import collections
+import pdb
 import mxnet as mx
 import numpy as np
 from numpy.linalg import norm
@@ -46,6 +47,7 @@ class FaceAnalysis:
                                                   scale=det_scale)
         
         list_ret = []
+        face_images = []
         for img, bboxes, landmarks in zip(imgs, list_bboxes, list_landmarks):
             if bboxes.shape[0] == 0:
                 list_ret.append([])
@@ -71,17 +73,12 @@ class FaceAnalysis:
                 det_score = bboxes[i, 4]
                 landmark = landmarks[i]
                 _img = face_align.norm_crop(img, landmark=landmark)
+                face_images.append(_img)
                 embedding = None
                 embedding_norm = None
                 normed_embedding = None
                 gender = None
                 age = None
-                if self.rec_model is not None:
-                    embedding = self.rec_model.get_embedding(_img).flatten()
-                    embedding_norm = norm(embedding)
-                    normed_embedding = embedding / embedding_norm
-                if self.ga_model is not None:
-                    gender, age = self.ga_model.get(_img)
                 face = Face(bbox=bbox,
                             landmark=landmark,
                             det_score=det_score,
@@ -92,4 +89,11 @@ class FaceAnalysis:
                             embedding_norm=embedding_norm)
                 ret.append(face)
             list_ret.append(ret)
+            
+        if self.rec_model is not None and face_images:
+            # pdb.set_trace()
+            embeddings = self.rec_model.get_embedding(face_images)
+            for embedding in embeddings:
+                embedding_norm = norm(embedding)
+                normed_embedding = embedding / embedding_norm
         return list_ret
