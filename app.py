@@ -1,4 +1,5 @@
 from collections import deque
+import os
 import threading
 import time
 from flask import Flask, request
@@ -36,7 +37,7 @@ def worker():
     
     while True:
         if len(work_buffer) == 0:
-            time.sleep(1)
+            time.sleep(0.001)
             continue
         images = work_buffer.popleft()
         
@@ -146,12 +147,12 @@ def face_detection_recognition():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu-id', type=int, default=-1, help='-1 means CPU')
-    args = parser.parse_args()
-    args = vars(args)
-    fdr.prepare(ctx_id=args['gpu_id'])
-
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--gpu-id', type=int, default=-1, help='-1 means CPU')
+    # args = parser.parse_args()
+    # args = vars(args)
+    gpu_id = int(os.environ.get("GPU_ID", 0))
+    fdr.prepare(ctx_id=gpu_id)
     app.run(host='0.0.0.0', port=10002)
 
 
