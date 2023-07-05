@@ -347,31 +347,31 @@ class FaceDetector:
                                 fy=scale,
                                 interpolation=cv2.INTER_LINEAR)
             ims.append(im)
-        print(f"resize {time.time() - st}")
+        print(f"resize {time.time()}")
         
         # im_info = [im.shape[0], im.shape[1]]
         im_tensor = np.zeros((n_imgs, 3, ims[0].shape[0], ims[0].shape[1]))
         for k in range(n_imgs):
             for i in range(3):
                 im_tensor[k, i, :, :] = ims[k][:, :, 2 - i]
-        print(f"rearrange {time.time() - st}")
+        print(f"rearrange {time.time()}")
         
         data = nd.array(im_tensor)
-        print(f"nd.array() {time.time() - st}")
+        print(f"nd.array() {time.time()}")
         db = mx.io.DataBatch(data=(data, ),
                             provide_data=[('data', data.shape)])
-        print(f"mx.io.DataBatch() {time.time() - st}")
+        print(f"mx.io.DataBatch() {time.time()}")
         if _PROFILE:
             profile_cnt += 1
             if profile_cnt == _PROFILE_TRG:
                 profiler.set_state('run')
         self.model.forward(db, is_train=False)
-        print(f"forward() {time.time() - st}")
+        print(f"forward() {time.time()}")
         net_out = self.model.get_outputs()
-        print(f"get_outputs() {time.time() - st}")
+        print(f"get_outputs() {time.time()}")
         if not _EMPTY:
             mx.nd.waitall()
-            print(f"wait_to_read() {time.time() - st}")
+            print(f"wait_to_read() {time.time()}")
         if _PROFILE:
             if profile_cnt == _PROFILE_TRG:
                 profiler.set_state('stop')
@@ -390,7 +390,7 @@ class FaceDetector:
                     list_landmarks.append(np.zeros((0, 5, 2)))
                     continue
                     
-                print(f"Starting batch {k}, {time.time() - st}")
+                print(f"Starting batch {k}, {time.time()}")
                 for _idx, s in enumerate(self._feat_stride_fpn):
                     _key = 'stride%s' % s
                     stride = int(s)
@@ -447,9 +447,9 @@ class FaceDetector:
                             (0, 2, 3, 1)).reshape((n_imgs, -1, 5, landmark_pred_len // 5))[k]
                         landmark_deltas *= self.landmark_std
                         #print(landmark_deltas.shape, landmark_deltas)
-                        print(f"before landmark_pred {k}, {time.time() - st}")
+                        print(f"before landmark_pred {k}, {time.time()}")
                         landmarks = landmark_pred(anchors, landmark_deltas)
-                        print(f"after landmark_pred {k}, {time.time() - st}")
+                        print(f"after landmark_pred {k}, {time.time()}")
                         landmarks = landmarks[order, :]
 
                         landmarks[:, :, 0:2] /= scale
@@ -477,7 +477,7 @@ class FaceDetector:
                 pre_det = np.hstack((proposals[:, 0:4], scores)).astype(np.float32,
                                                                         copy=False)
                 keep = self.nms(pre_det)
-                print(f"nms {k}, {time.time() - st}")
+                print(f"nms {k}, {time.time()}")
                 det = np.hstack((pre_det, proposals[:, 4:]))
                 det = det[keep, :]
                 if self.use_landmarks:
@@ -488,12 +488,12 @@ class FaceDetector:
             net_out_numpied = None
             if not _EMPTY:
                 net_out_numpied = [x.asnumpy() for x in net_out]
-                print(f"numpied() {time.time() - st}")
+                print(f"numpied() {time.time()}")
             
             list_det, list_landmarks = post_processing_face_detection(n_imgs, net_out_numpied, self.use_landmarks, \
                 self._feat_stride_fpn, self._num_anchors, self._anchors_fpn, threshold, self.landmark_std, \
                     self.nms_threshold, scale, _EMPTY)
-        print(f"finish {time.time() - st}")
+        print(f"finish {time.time()}")
         return list_det, list_landmarks
 
     def nms(self, dets):

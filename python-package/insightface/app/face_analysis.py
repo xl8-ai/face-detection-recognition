@@ -1,6 +1,7 @@
 from __future__ import division
 import collections
 import pdb
+import time
 import mxnet as mx
 import numpy as np
 from numpy.linalg import norm
@@ -45,6 +46,7 @@ class FaceAnalysis:
         list_bboxes, list_landmarks = self.det_model.detect(imgs,
                                                   threshold=det_thresh,
                                                   scale=det_scale)
+        print(f"face_analysis, 0, started {time.time()}")
         
         list_ret = []
         fimg_face = []
@@ -91,7 +93,8 @@ class FaceAnalysis:
             list_ret.append(ret)
             
         face_replace = {}
-            
+
+        print(f"face_analysis, 20, started {time.time()}")
         if self.rec_model is not None and fimg_face:
             # pdb.set_trace()
             embeddings = self.rec_model.get_embedding([x[0] for x in fimg_face])
@@ -106,5 +109,5 @@ class FaceAnalysis:
                 for x in list1:
                     list_ret_new[-1].append(face_replace[id(x)])
             list_ret = list_ret_new
-                
+        print(f"face_analysis, 30, started {time.time()}")
         return list_ret
