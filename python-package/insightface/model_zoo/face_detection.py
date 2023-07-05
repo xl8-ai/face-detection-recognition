@@ -331,6 +331,7 @@ class FaceDetector:
         global profile_cnt
         st = time.time()
         print(f"start detect() abt:{st}")
+        n_imgs = len(imgs)
         proposals_list = []
         scores_list = []
         landmarks_list = []
@@ -349,8 +350,8 @@ class FaceDetector:
         print(f"resize {time.time() - st}")
         
         # im_info = [im.shape[0], im.shape[1]]
-        im_tensor = np.zeros((BATCH_SIZE, 3, ims[0].shape[0], ims[0].shape[1]))
-        for k in range(BATCH_SIZE):
+        im_tensor = np.zeros((n_imgs, 3, ims[0].shape[0], ims[0].shape[1]))
+        for k in range(n_imgs):
             for i in range(3):
                 im_tensor[k, i, :, :] = ims[k][:, :, 2 - i]
         print(f"rearrange {time.time() - st}")
@@ -383,7 +384,7 @@ class FaceDetector:
         if _OLD:
             list_det = []
             list_landmarks = []
-            for k in range(BATCH_SIZE):
+            for k in range(n_imgs):
                 if False:
                     list_det.append(np.zeros((0, 5)))
                     list_landmarks.append(np.zeros((0, 5, 2)))
@@ -416,13 +417,13 @@ class FaceDetector:
                             self.anchor_plane_cache[key] = anchors
 
                     scores = clip_pad(scores, (height, width))
-                    scores2 = scores.transpose((0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 1))
+                    scores2 = scores.transpose((0, 2, 3, 1)).reshape((n_imgs, -1, 1))
 
                     bbox_deltas2 = clip_pad(bbox_deltas, (height, width))
                     bbox_deltas3 = bbox_deltas2.transpose((0, 2, 3, 1))
                     bbox_pred_len = bbox_deltas3.shape[3] // A
                     bbox_deltas4 = bbox_deltas3.reshape((-1, bbox_pred_len))
-                    bbox_deltas4 = bbox_deltas3.reshape((BATCH_SIZE, -1, bbox_pred_len))
+                    bbox_deltas4 = bbox_deltas3.reshape((n_imgs, -1, bbox_pred_len))
 
                     proposals = bbox_pred(anchors, bbox_deltas4[k])
                     #proposals = clip_boxes(proposals, im_info[:2])
@@ -443,7 +444,7 @@ class FaceDetector:
                         landmark_deltas = clip_pad(landmark_deltas, (height, width))
                         landmark_pred_len = landmark_deltas.shape[1] // A
                         landmark_deltas = landmark_deltas.transpose(
-                            (0, 2, 3, 1)).reshape((BATCH_SIZE, -1, 5, landmark_pred_len // 5))[k]
+                            (0, 2, 3, 1)).reshape((n_imgs, -1, 5, landmark_pred_len // 5))[k]
                         landmark_deltas *= self.landmark_std
                         #print(landmark_deltas.shape, landmark_deltas)
                         print(f"before landmark_pred {k}, {time.time() - st}")
@@ -489,7 +490,7 @@ class FaceDetector:
                 net_out_numpied = [x.asnumpy() for x in net_out]
                 print(f"numpied() {time.time() - st}")
             
-            list_det, list_landmarks = post_processing_face_detection(BATCH_SIZE, net_out_numpied, self.use_landmarks, \
+            list_det, list_landmarks = post_processing_face_detection(n_imgs, net_out_numpied, self.use_landmarks, \
                 self._feat_stride_fpn, self._num_anchors, self._anchors_fpn, threshold, self.landmark_std, \
                     self.nms_threshold, scale, _EMPTY)
         print(f"finish {time.time() - st}")

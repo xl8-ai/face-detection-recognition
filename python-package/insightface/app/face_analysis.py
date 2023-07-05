@@ -47,7 +47,7 @@ class FaceAnalysis:
                                                   scale=det_scale)
         
         list_ret = []
-        face_images = []
+        fimg_face = []
         for img, bboxes, landmarks in zip(imgs, list_bboxes, list_landmarks):
             if bboxes.shape[0] == 0:
                 list_ret.append([])
@@ -73,7 +73,6 @@ class FaceAnalysis:
                 det_score = bboxes[i, 4]
                 landmark = landmarks[i]
                 _img = face_align.norm_crop(img, landmark=landmark)
-                face_images.append(_img)
                 embedding = None
                 embedding_norm = None
                 normed_embedding = None
@@ -87,13 +86,25 @@ class FaceAnalysis:
                             age=age,
                             normed_embedding=normed_embedding,
                             embedding_norm=embedding_norm)
+                fimg_face.append((_img, face))
                 ret.append(face)
             list_ret.append(ret)
             
-        if self.rec_model is not None and face_images:
+        face_replace = {}
+            
+        if self.rec_model is not None and fimg_face:
             # pdb.set_trace()
-            embeddings = self.rec_model.get_embedding(face_images)
-            for embedding in embeddings:
+            embeddings = self.rec_model.get_embedding([x[0] for x in fimg_face])
+            for embedding, (_, face) in zip(embeddings, fimg_face):
                 embedding_norm = norm(embedding)
                 normed_embedding = embedding / embedding_norm
+                face_replace[id(face)] = face._replace(embedding=embedding, normed_embedding=normed_embedding, embedding_norm=embedding_norm)
+                
+            list_ret_new = []
+            for list1 in list_ret:
+                list_ret_new.append([])
+                for x in list1:
+                    list_ret_new[-1].append(face_replace[id(x)])
+            list_ret = list_ret_new
+                
         return list_ret
