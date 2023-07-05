@@ -1,5 +1,6 @@
 from __future__ import division
 import os
+import pdb
 import mxnet as mx
 import numpy as np
 import cv2
@@ -50,17 +51,25 @@ class FaceRecognition:
     def get_embedding(self, imgs):
         assert self.param_file and self.model
         assert imgs[0].shape[2] == 3 and imgs[0].shape[0:2] == self.image_size
-        imgs_ = []
-        for img in imgs:
-            imgs_.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        data = np.array(imgs_)
-        data = np.transpose(data, (0, 3, 1, 2))
-        # data = np.expand_dims(data, axis=0)
-        data = mx.nd.array(data)
-        db = mx.io.DataBatch(data=(data, ))
-        self.model.forward(db, is_train=False)
-        embeddings = self.model.get_outputs()[0].asnumpy()
-        return embeddings
+        
+        # pdb.set_trace()
+        list_embeddings = []
+        while imgs:
+            imgs_seg = imgs[:REC_BATCH_SIZE]
+            imgs = imgs[REC_BATCH_SIZE:]
+            imgs_ = []
+            for img in imgs_seg:
+                imgs_.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            data = np.array(imgs_)
+            data = np.transpose(data, (0, 3, 1, 2))
+            # data = np.expand_dims(data, axis=0)
+            data = mx.nd.array(data)
+            db = mx.io.DataBatch(data=(data, ))
+            self.model.forward(db, is_train=False)
+            embeddings = self.model.get_outputs()[0].asnumpy()
+            list_embeddings.append(embeddings)
+        ret = np.concatenate(list_embeddings)
+        return ret
 
     def compute_sim(self, img1, img2):
         emb1 = self.get_embedding(img1).flatten()
