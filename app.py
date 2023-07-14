@@ -113,7 +113,7 @@ def face_detection_recognition():
         image_size_original_.append(image.size)
 
         app.logger.debug(f"Resizing a PIL image to 640 by 640 ...")
-        image = resize_square_image(image, 640, background_color=(0, 0, 0))
+        image = resize_square_image(image, 320, background_color=(0, 0, 0))
         image_size_new_.append(image.size)
 
         app.logger.debug(f"Conveting a PIL image to a numpy array ...")
