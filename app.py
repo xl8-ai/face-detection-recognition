@@ -29,8 +29,8 @@ fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
 
 work_buffer = deque()
 result_buffer = deque()
-image_size_original = None
-image_size_new = None
+image_size_original = {}
+image_size_new = {}
 
 def worker():
     global image_size_original, image_size_new
@@ -47,13 +47,17 @@ def worker():
         app.logger.info(f"features extracted! abt: {time.time()}, rt: {time.time() - st}")
         
         list_results_frame = []
-        for list_of_features in list_list_of_features:
+        image_size_original_ = image_size_original[id(images)]
+        image_size_new_ = image_size_new[id(images)] 
+    
+        assert len(list_list_of_features) == len(image_size_original_)
+        for idx_batch, list_of_features in enumerate(list_list_of_features):
             app.logger.info(f"In total of {len(list_of_features)} faces detected!")
 
             results_frame = []
             for features in list_of_features:
-                bbox = get_original_bbox(features.bbox, image_size_original, image_size_new)
-                landmark = get_original_lm(features.landmark, image_size_original, image_size_new)
+                bbox = get_original_bbox(features.bbox, image_size_original_[idx_batch], image_size_new_[idx_batch])
+                landmark = get_original_lm(features.landmark, image_size_original_[idx_batch], image_size_new_[idx_batch])
                 feature_dict = {'bbox': bbox,
                                 'det_score': features.det_score,
                                 'landmark': landmark,
@@ -69,6 +73,10 @@ def worker():
         result_buffer.append(response_pickled)
         
         app.logger.info(f"prepared response! {time.time() - st}")
+        
+        image_size_original.pop(id(images))
+        image_size_new.pop(id(images))
+        
         # result_buffer.append("done")
         
 
@@ -93,16 +101,20 @@ def face_detection_recognition():
 
     app.logger.debug(f"decompressing image ...")
     images = []
+    
+    image_size_original_ = []
+    image_size_new_ = []
+    
     for image in data['images']:
         image = io.BytesIO(image)
 
         app.logger.debug(f"Reading a PIL image ...")
         image = Image.open(image)
-        image_size_original = image.size
+        image_size_original_.append(image.size)
 
         app.logger.debug(f"Resizing a PIL image to 640 by 640 ...")
         image = resize_square_image(image, 640, background_color=(0, 0, 0))
-        image_size_new = image.size
+        image_size_new_.append(image.size)
 
         app.logger.debug(f"Conveting a PIL image to a numpy array ...")
         image = np.array(image)
@@ -115,6 +127,8 @@ def face_detection_recognition():
             return response_pickled
         images.append(image)
     
+    image_size_original[id(images)] = image_size_original_
+    image_size_new[id(images)] = image_size_new_
     work_buffer.append(images)
     return "done"
 
