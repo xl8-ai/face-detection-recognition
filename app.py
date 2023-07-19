@@ -1,5 +1,6 @@
 from collections import deque
 import os
+import sys
 import threading
 import time
 from flask import Flask, request
@@ -19,6 +20,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+INPUT_SIZE = None
 
 # gender age estimaion are bad. We don't use them here.
 fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
@@ -112,8 +114,8 @@ def face_detection_recognition():
         image = Image.open(image)
         image_size_original_.append(image.size)
 
-        app.logger.debug(f"Resizing a PIL image to 640 by 640 ...")
-        image = resize_square_image(image, 160, background_color=(0, 0, 0))
+        app.logger.debug(f"Resizing a PIL image to {INPUT_SIZE} by {INPUT_SIZE} ...")
+        image = resize_square_image(image, INPUT_SIZE, background_color=(0, 0, 0))
         image_size_new_.append(image.size)
 
         app.logger.debug(f"Conveting a PIL image to a numpy array ...")
@@ -161,12 +163,14 @@ def face_detection_recognition():
 
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--gpu-id', type=int, default=-1, help='-1 means CPU')
-    # args = parser.parse_args()
-    # args = vars(args)
-    gpu_id = int(os.environ.get("GPU_ID", 0))
-    fdr.prepare(ctx_id=gpu_id)
-    app.run(host='0.0.0.0', port=10002)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu_id', type=int, default=0, help='-1 means CPU')
+    parser.add_argument('--port', type=int, default=10002)
+    parser.add_argument('--input_size', type=int, default=640)
+    args = parser.parse_args()
+    args = vars(args)
+    
+    INPUT_SIZE = args['input_size']
 
-
+    fdr.prepare(ctx_id=args['gpu_id'])
+    app.run(host='0.0.0.0', port=args['port'])
