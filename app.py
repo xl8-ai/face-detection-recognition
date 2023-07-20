@@ -90,7 +90,10 @@ def get_result():
     ret = []
     while len(result_buffer) >0:
         ret.append(result_buffer.popleft())
-    return ret
+    return {
+        "result": ret,
+        "count_work_buffer": len(work_buffer),
+    }
 
 @app.route("/", methods=["POST"])
 def face_detection_recognition():
