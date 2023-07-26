@@ -1,4 +1,5 @@
 from collections import deque
+from hashlib import md5
 import os
 import sys
 import threading
@@ -33,15 +34,21 @@ work_buffer = deque()
 result_buffer = deque()
 image_size_original = {}
 image_size_new = {}
+image_hash = {}
 
+last_req_id_worker = -1
 def worker():
-    global image_size_original, image_size_new
+    global image_size_original, image_size_new, image_hash, last_req_id_worker
     
     while True:
         if len(work_buffer) == 0:
             time.sleep(0.001)
             continue
-        images = work_buffer.popleft()
+        images, req_ids = work_buffer.popleft()
+        if not last_req_id_worker+1 == req_ids[0]:
+            print("last_req_id_worker error", last_req_id_worker, req_ids)
+            exit(1)
+        last_req_id_worker = req_ids[-1]
         
         app.logger.info(f"extraing features ... abt: {time.time()}")
         st = time.time()
@@ -51,6 +58,8 @@ def worker():
         list_results_frame = []
         image_size_original_ = image_size_original[id(images)]
         image_size_new_ = image_size_new[id(images)] 
+        image_hash_ = image_hash[id(images)]
+        
     
         assert len(list_list_of_features) == len(image_size_original_)
         for idx_batch, list_of_features in enumerate(list_list_of_features):
@@ -63,7 +72,11 @@ def worker():
                 feature_dict = {'bbox': bbox,
                                 'det_score': features.det_score,
                                 'landmark': landmark,
-                                'normed_embedding': features.normed_embedding
+                                'normed_embedding': features.normed_embedding,
+                                'org_size': image_size_original_[idx_batch],
+                                'new_size': image_size_new_[idx_batch],
+                                'bbox_model': features.bbox,
+                                'image_hash': image_hash_[idx_batch],
                                 }
                 results_frame.append(feature_dict)
             list_results_frame.append(results_frame)
@@ -72,12 +85,13 @@ def worker():
         app.logger.info("json-pickle is done.")
         
         response_pickled = jsonpickle.encode(response)
-        result_buffer.append(response_pickled)
+        result_buffer.append((response_pickled, req_ids))
         
         app.logger.info(f"prepared response! {time.time() - st}")
         
         image_size_original.pop(id(images))
         image_size_new.pop(id(images))
+        image_hash.pop(id(images))
         
         # result_buffer.append("done")
         
@@ -85,19 +99,28 @@ def worker():
 thread = threading.Thread(target=worker)
 thread.start()
 
+last_req_id_buffer = -1
 @app.route("/result", methods=["GET"])
 def get_result():
+    global last_req_id_buffer
     ret = []
     while len(result_buffer) >0:
-        ret.append(result_buffer.popleft())
+        batch_result, req_ids = result_buffer.popleft()
+        if not last_req_id_buffer+1 == req_ids[0]:
+            print("last_req_id_buffer error", last_req_id_buffer, req_ids)
+            exit(1)
+        last_req_id_buffer = req_ids[-1]
+        ret.append((batch_result, req_ids))
     return {
         "result": ret,
         "count_work_buffer": len(work_buffer),
     }
 
+last_req_id_request = -1
+last_req_id_enqueue = -1
 @app.route("/", methods=["POST"])
 def face_detection_recognition():
-    global image_size_original, image_size_new
+    global image_size_original, image_size_new, image_hash, last_req_id_request, last_req_id_enqueue
     """Receive everything in json!!!
     """
     app.logger.debug(f"Receiving data ...")
@@ -109,8 +132,16 @@ def face_detection_recognition():
     
     image_size_original_ = []
     image_size_new_ = []
+    image_hash_ = []
+    
+    req_ids = data['req_ids']
+    # if not last_req_id_request+1 == req_ids[0]:
+    #     print('last_req_id_request error', last_req_id_request, req_ids)
+    #     exit(1)
+    # last_req_id_request = req_ids[-1]
     
     for image in data['images']:
+        image_hash_code = md5(image).hexdigest()
         image = io.BytesIO(image)
 
         app.logger.debug(f"Reading a PIL image ...")
@@ -120,6 +151,7 @@ def face_detection_recognition():
         app.logger.debug(f"Resizing a PIL image to {INPUT_SIZE} by {INPUT_SIZE} ...")
         image = resize_square_image(image, INPUT_SIZE, background_color=(0, 0, 0))
         image_size_new_.append(image.size)
+        image_hash_.append(image_hash_code)
 
         app.logger.debug(f"Conveting a PIL image to a numpy array ...")
         image = np.array(image)
@@ -134,7 +166,15 @@ def face_detection_recognition():
     
     image_size_original[id(images)] = image_size_original_
     image_size_new[id(images)] = image_size_new_
-    work_buffer.append(images)
+    image_hash[id(images)] = image_hash_
+    
+    while True:
+        if not last_req_id_enqueue+1 == req_ids[0]:
+            time.sleep(0.001)
+            continue
+        work_buffer.append((images, req_ids))
+        last_req_id_enqueue = req_ids[-1]
+        break
     return "done"
 
     app.logger.info(f"extraing features ...")
