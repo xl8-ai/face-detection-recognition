@@ -22,6 +22,10 @@ logging.basicConfig(
 
 app = Flask(__name__)
 INPUT_SIZE = None
+BATCH_SIZE = int(os.environ.get("BATCH_SIZE", 1))
+PARALLEL_SIZE = int(os.environ.get("PARALLEL_SIZE", 1))
+IDX_WORKER = int(os.environ.get("IDX_WORKER", 0))
+
 
 # gender age estimaion are bad. We don't use them here.
 fdr = FaceDetectionRecognition(det_name='retinaface_r50_v1',
@@ -36,19 +40,19 @@ image_size_original = {}
 image_size_new = {}
 image_hash = {}
 
-last_req_id_worker = -1
+# last_req_id_worker = -1
 def worker():
-    global image_size_original, image_size_new, image_hash, last_req_id_worker
+    global image_size_original, image_size_new, image_hash
     
     while True:
         if len(work_buffer) == 0:
             time.sleep(0.001)
             continue
         images, req_ids = work_buffer.popleft()
-        if not last_req_id_worker+1 == req_ids[0]:
-            print("last_req_id_worker error", last_req_id_worker, req_ids)
-            exit(1)
-        last_req_id_worker = req_ids[-1]
+        # if not last_req_id_worker+1+(BATCH_SIZE*(PARALLEL_SIZE-1)) == req_ids[0]:
+        #     print("last_req_id_worker error", last_req_id_worker, req_ids)
+        #     exit(1)
+        # last_req_id_worker = req_ids[-1]
         
         app.logger.info(f"extraing features ... abt: {time.time()}")
         st = time.time()
@@ -99,28 +103,27 @@ def worker():
 thread = threading.Thread(target=worker)
 thread.start()
 
-last_req_id_buffer = -1
+# last_req_id_buffer = -1
 @app.route("/result", methods=["GET"])
 def get_result():
-    global last_req_id_buffer
+    # global last_req_id_buffer
     ret = []
     while len(result_buffer) >0:
         batch_result, req_ids = result_buffer.popleft()
-        if not last_req_id_buffer+1 == req_ids[0]:
-            print("last_req_id_buffer error", last_req_id_buffer, req_ids)
-            exit(1)
-        last_req_id_buffer = req_ids[-1]
+        # if not last_req_id_buffer+1+(BATCH_SIZE*(PARALLEL_SIZE-1)) == req_ids[0]:
+        #     print("last_req_id_buffer error", last_req_id_buffer, req_ids)
+        #     exit(1)
+        # last_req_id_buffer = req_ids[-1]
         ret.append((batch_result, req_ids))
     return {
         "result": ret,
         "count_work_buffer": len(work_buffer),
     }
 
-last_req_id_request = -1
-last_req_id_enqueue = -1
+next_req_id_enqueue = BATCH_SIZE*IDX_WORKER
 @app.route("/", methods=["POST"])
 def face_detection_recognition():
-    global image_size_original, image_size_new, image_hash, last_req_id_request, last_req_id_enqueue
+    global image_size_original, image_size_new, image_hash, next_req_id_enqueue
     """Receive everything in json!!!
     """
     app.logger.debug(f"Receiving data ...")
@@ -169,11 +172,13 @@ def face_detection_recognition():
     image_hash[id(images)] = image_hash_
     
     while True:
-        if not last_req_id_enqueue+1 == req_ids[0]:
+        if not next_req_id_enqueue == req_ids[0]:
             time.sleep(0.001)
+            # time.sleep(0.1)
+            # print("waiting", next_req_id_enqueue, req_ids[0])
             continue
         work_buffer.append((images, req_ids))
-        last_req_id_enqueue = req_ids[-1]
+        next_req_id_enqueue = req_ids[-1]+1+(BATCH_SIZE*(PARALLEL_SIZE-1))
         break
     return "done"
 
