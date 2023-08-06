@@ -39,8 +39,22 @@ result_buffer = deque()
 image_size_original = {}
 image_size_new = {}
 image_hash = {}
+next_req_id_enqueue = BATCH_SIZE*IDX_WORKER
 
-# last_req_id_worker = -1
+@app.route("/reset", methods=["POST"])
+def reset():
+    global next_req_id_enqueue
+    assert not work_buffer
+    assert not result_buffer
+    assert not image_size_original
+    assert not image_size_new
+    assert not image_hash
+
+    next_req_id_enqueue = BATCH_SIZE*IDX_WORKER
+    return {
+        "result": 0,
+    }
+
 def worker():
     global image_size_original, image_size_new, image_hash
     
@@ -49,10 +63,6 @@ def worker():
             time.sleep(0.001)
             continue
         images, req_ids = work_buffer.popleft()
-        # if not last_req_id_worker+1+(BATCH_SIZE*(PARALLEL_SIZE-1)) == req_ids[0]:
-        #     print("last_req_id_worker error", last_req_id_worker, req_ids)
-        #     exit(1)
-        # last_req_id_worker = req_ids[-1]
         
         app.logger.info(f"extraing features ... abt: {time.time()}")
         st = time.time()
@@ -103,24 +113,17 @@ def worker():
 thread = threading.Thread(target=worker)
 thread.start()
 
-# last_req_id_buffer = -1
 @app.route("/result", methods=["GET"])
 def get_result():
-    # global last_req_id_buffer
     ret = []
     while len(result_buffer) >0:
         batch_result, req_ids = result_buffer.popleft()
-        # if not last_req_id_buffer+1+(BATCH_SIZE*(PARALLEL_SIZE-1)) == req_ids[0]:
-        #     print("last_req_id_buffer error", last_req_id_buffer, req_ids)
-        #     exit(1)
-        # last_req_id_buffer = req_ids[-1]
         ret.append((batch_result, req_ids))
     return {
         "result": ret,
         "count_work_buffer": len(work_buffer),
     }
 
-next_req_id_enqueue = BATCH_SIZE*IDX_WORKER
 @app.route("/", methods=["POST"])
 def face_detection_recognition():
     global image_size_original, image_size_new, image_hash, next_req_id_enqueue
@@ -138,10 +141,6 @@ def face_detection_recognition():
     image_hash_ = []
     
     req_ids = data['req_ids']
-    # if not last_req_id_request+1 == req_ids[0]:
-    #     print('last_req_id_request error', last_req_id_request, req_ids)
-    #     exit(1)
-    # last_req_id_request = req_ids[-1]
     
     for image in data['images']:
         image_hash_code = md5(image).hexdigest()
