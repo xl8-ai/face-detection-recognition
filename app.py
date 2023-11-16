@@ -4,6 +4,9 @@
 import numpy as np
 np.bool = np.bool_
 
+# insightface also has a issue with numpy so the trick below is needed.
+np.float = np.float64 
+
 
 import threading
 from flask import Flask, request
