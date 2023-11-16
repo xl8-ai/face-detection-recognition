@@ -1,3 +1,10 @@
+# mxnet has a issue with numpy 1.20+. The bug fix PR hasn't been merged yet.
+# Till it's merged, we'll use a trick to avoid the problem.
+# https://github.com/apache/mxnet/pull/21224
+import numpy as np
+np.bool = np.bool_
+
+
 import threading
 from flask import Flask, request
 import jsonpickle
